@@ -92,8 +92,8 @@ st.markdown(
     '<p>Esta herramienta <strong>open source</strong> resuelve ese problema: completá los datos del '
     'portador y obtené al instante una factura en PDF lista para presentar. Sin depender de proveedores '
     'ni pagar licencias — todo corre sobre tu propia infraestructura.</p>'
-    '<p style="font-size:0.8rem;color:#9CA3AF;">"
-    "✅ CAE automático vía Web Services ARCA · ✅ QR · ✅ Persistencia en DB</p>'
+    '<p style="font-size:0.8rem;color:#9CA3AF;">"'
+    '✅ CAE automático vía Web Services ARCA · ✅ QR · ✅ Persistencia en DB</p>'
     '<a class="um-btn" href="%s" target="_blank">📖 Nota técnica RG 5824 →</a>'
     '<a class="um-btn-gh" href="%s" target="_blank">🐙 Código fuente en GitHub</a>'
     '</div>' % (BLOG_URL, GITHUB_URL),
