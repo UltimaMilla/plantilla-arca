@@ -1,0 +1,13 @@
+# Code owners for Plantilla ARCA
+# This file automatically requests reviews from owners when PRs touch these paths
+
+# Default owner for all changes
+* @martinsan
+
+# Documentation and tests
+docs/ @martinsan
+tests/ @martinsan
+
+# PDF generation and AFIP integration
+src/pdf/ @martinsan
+src/models.py @martinsan

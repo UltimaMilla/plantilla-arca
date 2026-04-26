@@ -1,18 +1,65 @@
+# Environment variables and credentials
 .env
 .env.local
+
+# AFIP certificates (sensitive!)
+*.crt
+*.key
+certs/*.crt
+certs/*.key
+!certs/*.example
+
+# Python dependencies
 venv/
 env/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
 *.egg-info/
+.installed.cfg
+*.egg
+
+# IDE and editor
 .vscode/
 .idea/
-certs/*.crt
-certs/*.key
-!certs/*.example
-docker-compose.override.yml
-postgres_data/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+.tox/
+
+# Generated files
+output/pdf_files/
+output/*.pdf
+*.log
 tmp/
 temp/
-*.log
-output/*.pdf
+
+# Docker
+docker-compose.override.yml
+postgres_data/
+redis_data/
+
+# OS
+.DS_Store
+Thumbs.db
