@@ -128,7 +128,7 @@ st.markdown(
 st.markdown(
     '<div class="um-section">'
     '<h3>🐙 ¿Por qué open source?</h3>'
-    '<p>Porque facturar no debería ser un negocio. Este código es <strong>100% libre</strong>, '
+    '<p>Porque facturar no debería ser un negocio. Este código es <strong>100%% libre</strong>, '
     'se audita, se mejora y se adapta. Descargalo, ejecutalo en tu propio servidor, '
     'modificalo. Sin SaaS, sin límites de emisión, sin costos ocultos. '
     '<a href="%s" target="_blank" style="color:%s;">Descargar desde GitHub →</a></p>'
