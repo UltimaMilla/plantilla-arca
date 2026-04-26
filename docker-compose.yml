@@ -1,0 +1,46 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: arca_postgres
+    environment:
+      POSTGRES_USER: arca_user
+      POSTGRES_PASSWORD: arca_password_dev
+      POSTGRES_DB: arca_facturas
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arca_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: arca_app
+    environment:
+      DATABASE_URL: postgresql://arca_user:arca_password_dev@postgres:5432/arca_facturas
+      ARCA_HOMOLOGACION: "true"
+      STREAMLIT_SERVER_HEADLESS: true
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+      - ./certs:/app/certs:ro
+      - ./output:/app/output
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: streamlit run src/web/streamlit_app.py
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: arca_network
