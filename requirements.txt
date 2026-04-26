@@ -4,8 +4,8 @@ alembic==1.12.1
 psycopg2-binary==2.9.9
 arca_arg==0.1.2
 reportlab==4.0.7
-PyQRCode==1.9.2
-weasyprint==59.3
+PyQRCode==1.2.1
+weasyprint==62.3
 streamlit==1.28.1
 streamlit-aggrid==0.3.5
 click==8.1.7
