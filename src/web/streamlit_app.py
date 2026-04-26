@@ -6,7 +6,7 @@ Ultima Milla - Soluciones técnicas para pymes argentinas
 import streamlit as st
 import sys
 import os
-from datetime import date
+from datetime import date, datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
@@ -44,7 +44,6 @@ st.markdown(f"""
     .um-hero h1 {{ color: white; font-size: 1.6rem; margin: 0 0 0.4rem 0; }}
     .um-hero p {{ color: #D1D5DB; font-size: 0.9rem; line-height: 1.5; margin: 0 0 0.5rem 0; }}
     .um-hero .hl {{ color: {PRIMARY}; font-weight: 700; }}
-    .um-hero .hl-blue {{ color: #60A5FA; font-weight: 600; }}
     .um-btn {{
         display: inline-block; padding: 0.4rem 1rem; background: {PRIMARY};
         color: white !important; text-decoration: none; border-radius: 5px;
@@ -61,6 +60,10 @@ st.markdown(f"""
     }}
     .um-section h3 {{ color: {DARK}; margin: 0 0 0.5rem 0; font-size: 1rem; }}
     .um-section p {{ color: #4B5563; font-size: 0.9rem; line-height: 1.5; margin: 0; }}
+    .um-cae-box {{
+        background: #FFFBEB; border: 1px solid #FDE68A; border-left: 4px solid #F59E0B;
+        padding: 1rem 1.5rem; border-radius: 6px; margin: 1rem 0;
+    }}
     .um-footer {{
         text-align: center; padding: 1.5rem 0 0.5rem 0;
         border-top: 1px solid #E5E7EB; margin-top: 2.5rem;
@@ -86,13 +89,13 @@ st.markdown(
     '<div class="um-hero">'
     '<h1>🧾 Generador de Facturas ARCA</h1>'
     '<p>La <strong>RG 5824</strong> de ARCA (ex AFIP) exige que <strong>directores, síndicos, abogados, '
-    'contadores y profesionales independientes</strong> emitan <span class="hl">facturación electrónica</span> '
+    'contadores y profesionales independientes</strong> emitan facturación electrónica '
     'por todas sus operaciones. Desde 2026, quienes antes no facturaban o lo hacían en papel están '
-    '<span class="hl">obligados a presentar comprobantes electrónicos ante ARCA</span>.</p>'
+    'obligados a presentar comprobantes electrónicos ante ARCA.</p>'
     '<p>Esta herramienta <strong>open source</strong> resuelve ese problema: completá los datos del '
     'portador y obtené al instante una factura en PDF lista para presentar. Sin depender de proveedores '
     'ni pagar licencias — todo corre sobre tu propia infraestructura.</p>'
-    '<p style="font-size:0.8rem;color:#9CA3AF;">"'
+    '<p style="font-size:0.8rem;color:#9CA3AF;">'
     '✅ CAE automático vía Web Services ARCA · ✅ QR · ✅ Persistencia en DB</p>'
     '<a class="um-btn" href="%s" target="_blank">📖 Nota técnica RG 5824 →</a>'
     '<a class="um-btn-gh" href="%s" target="_blank">🐙 Código fuente en GitHub</a>'
@@ -106,8 +109,8 @@ st.markdown(
     '<h3>📌 ¿Qué cambió con RG 5824?</h3>'
     '<p>Hasta 2025, directores, síndicos y ciertos profesionales podían emitir comprobantes '
     'en papel o directamente no facturar. La <strong>RG 5824</strong> cerró esa puerta: '
-    '<strong>todas las operaciones</strong> (honorarios, consultorías, servicios profesionales) '
-    'deben emitirse como <strong>factura electrónica con CAE</strong> ante ARCA. '
+    'todas las operaciones (honorarios, consultorías, servicios profesionales) '
+    'deben emitirse como factura electrónica con CAE ante ARCA. '
     'No hacerlo es incumplimiento formal con multas actualizadas.</p>'
     '</div>',
     unsafe_allow_html=True,
@@ -117,10 +120,10 @@ st.markdown(
     '<div class="um-section">'
     '<h3>🧾 ¿Qué hace este formulario?</h3>'
     '<p>Completá los datos del <strong>portador</strong> (emisor de la factura) y del '
-    '<strong>comprobante</strong> (tipo, monto, concepto). Al hacer clic en "Generar Factura", '
-    'el sistema arma un PDF profesional con todos los datos requeridos por ARCA: '
-    'CUIT, condición fiscal, detalle, CAE, código QR y vencimiento. '
-    'El PDF se descarga al instante y queda listo para presentar.</p>'
+    '<strong>comprobante</strong> (tipo, monto, concepto). Elegí si querés un CAE '
+    '<strong>simulado</strong> (para pruebas) u <strong>obtener uno real</strong> '
+    'conectando contra los Web Services de ARCA. Al generar, el sistema arma un PDF '
+    'profesional listo para presentar.</p>'
     '</div>',
     unsafe_allow_html=True,
 )
@@ -159,17 +162,94 @@ with col2:
     desc = st.text_area("Descripción del Servicio", value="Servicios de consultoría tecnológica", height=70)
     importe = st.number_input("Importe Total ($)", min_value=0.0, value=150000.0, step=1000.0)
 
+# ── CAE Mode Selector ───────────────────────────────────────────────
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown(f"<h3 style='color:{DARK};'>🔌 Origen del CAE</h3>", unsafe_allow_html=True)
+
+cae_mode = st.radio(
+    "Seleccioná el origen del CAE para el comprobante:",
+    options=[
+        "Simular CAE (sin conexión — datos de ejemplo)",
+        "Obtener CAE real desde ARCA (requiere certificados)",
+    ],
+    index=0,
+    horizontal=True,
+)
+
+arca_ambiente = "homologacion"
+if cae_mode.startswith("Obtener"):
+    col_a1, col_a2 = st.columns([1, 2])
+    with col_a1:
+        arca_ambiente = st.selectbox(
+            "Ambiente ARCA",
+            options=["Homologación (pruebas)", "Producción (real)"],
+            index=0,
+        )
+        arca_ambiente = "homologacion" if "Homologación" in arca_ambiente else "produccion"
+    with col_a2:
+        st.markdown(
+            '<div class="um-cae-box">'
+            "<b>⚙️ Configuración necesaria:</b><br>"
+            "• Certificado digital ARCA (.crt) en <code>certs/certificado.crt</code><br>"
+            "• Clave privada (.key) en <code>certs/clave_privada.key</code><br>"
+            "• CUIT configurado en <code>ARCA_CUIT</code> del .env<br><br>"
+            "Si no tenés los certificados, obtenelos desde "
+            '<a href="https://auth.afip.gob.ar" target="_blank">auth.afip.gob.ar</a>'
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
 st.markdown("<br>", unsafe_allow_html=True)
 gen_btn = st.button("✨ Generar Factura", type="primary", use_container_width=True)
 
 # ── Generate ────────────────────────────────────────────────────────
 if gen_btn:
     with st.spinner("Generando factura electrónica…"):
+
         tipo_map = {
             "Factura A (Resp. Inscripto)": "Factura A",
             "Factura B (Monotributista)": "Factura B",
             "Factura C (Exento)": "Factura C",
         }
+
+        cae = "71234567890123"
+        vto_cae = "15/05/2026"
+        nro_comprobante = "00001-00000001"
+
+        if cae_mode.startswith("Obtener"):
+            try:
+                from src.arca.client import ArcaClient
+                from src.config import ARCA_CUIT, ARCA_CERT_PATH, ARCA_KEY_PATH
+
+                st.info("Conectando con ARCA Web Services…")
+
+                if not os.path.exists(ARCA_CERT_PATH):
+                    st.warning(
+                        "No se encontraron los certificados ARCA. "
+                        "Usando CAE simulado."
+                    )
+                else:
+                    cliente = ArcaClient(
+                        cuit=cuit,
+                        cert_path=ARCA_CERT_PATH,
+                        key_path=ARCA_KEY_PATH,
+                        homologacion=(arca_ambiente == "homologacion"),
+                    )
+                    resultado = cliente.solicitar_cae(
+                        tipo_comprobante=tipo_map.get(tipo, tipo),
+                        importe_total=importe,
+                    )
+                    cae = resultado["cae"]
+                    vto_cae = resultado["vencimiento"]
+                    nro_comprobante = resultado["numero"]
+                    st.success("CAE obtenido de ARCA: %s" % cae)
+
+            except Exception as e:
+                st.warning(
+                    "No se pudo obtener CAE real: %s. "
+                    "Usando CAE simulado." % str(e)
+                )
+
         data = {
             "tipo_comprobante": tipo_map.get(tipo, tipo),
             "cuit": cuit,
@@ -177,9 +257,9 @@ if gen_btn:
             "domicilio": domicilio,
             "condicion_iva": iva,
             "punto_venta": "0001",
-            "numero_comprobante": "00001-00000001",
-            "cae": "71234567890123",
-            "vencimiento_cae": "15/05/2026",
+            "numero_comprobante": nro_comprobante,
+            "cae": cae,
+            "vencimiento_cae": vto_cae,
             "fecha_emision": fecha.strftime("%d/%m/%Y"),
             "descripcion": desc,
             "importe_total": importe,
@@ -193,7 +273,7 @@ if gen_btn:
             st.session_state.pdf_path = pdf_path
             st.success("✅ Factura generada exitosamente")
         except Exception as e:
-            st.error(f"Error al generar la factura: {e}")
+            st.error("Error al generar la factura: %s" % str(e))
             st.exception(e)
 
 # ── Download ────────────────────────────────────────────────────────
@@ -212,11 +292,11 @@ if "pdf_path" in st.session_state and st.session_state.pdf_path:
 # ── Footer ──────────────────────────────────────────────────────────
 st.markdown(
     '<div class="um-footer">'
-    '<a href="https://ultimamilla.com.ar">Ultima Milla</a> · '
-    'Soluciones técnicas para pymes argentinas · '
-    '<a href="%s">GitHub</a> · '
+    '<a href="https://ultimamilla.com.ar">Ultima Milla</a> \xb7 '
+    'Soluciones t\xe9cnicas para pymes argentinas \xb7 '
+    '<a href="%s">GitHub</a> \xb7 '
     '<a href="%s">Blog</a><br>'
-    '<span style="font-size:0.7rem;">MIT License · Streamlit · ReportLab · arca_arg · PostgreSQL</span>'
+    '<span style="font-size:0.7rem;">MIT License \xb7 Streamlit \xb7 ReportLab \xb7 arca_arg \xb7 PostgreSQL</span>'
     '</div>' % (GITHUB_URL, BLOG_URL),
     unsafe_allow_html=True,
 )
