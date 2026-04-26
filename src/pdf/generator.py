@@ -6,7 +6,7 @@ from reportlab.lib.units import cm
 from reportlab.lib.colors import HexColor, white
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_RIGHT
+from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
 from reportlab.graphics.barcode import qr
 from reportlab.graphics.shapes import Drawing
 
@@ -25,23 +25,18 @@ class GeneradorPDFFactura:
         os.makedirs(output_dir, exist_ok=True)
 
     def _header_table(self):
-        logo_svg = (
-            '<img src="https://ultimamilla.com.ar/images/logo-dark.svg" '
-            'width="180" height="29" valign="middle"/>'
+        logo_html = (
+            '<font size="16" color="#DC2626"><b>●</b></font>'
+            '&nbsp;<font size="14" color="#111827"><b>ULTIMA MILLA</b></font>'
+            '<br/><font size="7" color="#6B7280">Soluciones técnicas para pymes argentinas</font>'
         )
-
-        title_html = """
-        <para align="right">
-            <font size="14" color="#1A56C0"><b>FACTURA ELECTRÓNICA</b></font><br/>
-            <font size="8" color="#6B7280">RG 5824 - ARCA</font>
-        </para>
-        """
-
-        logo = Paragraph(logo_svg, ParagraphStyle("logo", fontSize=1, leading=1))
+        title_html = (
+            '<font size="13" color="#1A56C0"><b>FACTURA ELECTRÓNICA</b></font><br/>'
+            '<font size="8" color="#6B7280">RG 5824 - ARCA</font>'
+        )
+        logo = Paragraph(logo_html, ParagraphStyle("logo", fontSize=1, leading=1))
         title = Paragraph(title_html, ParagraphStyle("title_right", alignment=TA_RIGHT))
-
-        header_data = [[logo, title]]
-        header_table = Table(header_data, colWidths=[280, 280])
+        header_table = Table([[logo, title]], colWidths=[280, 280])
         header_table.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("LEFTPADDING", (0, 0), (0, 0), 0),
@@ -50,63 +45,61 @@ class GeneradorPDFFactura:
         return header_table
 
     def _emisor_block(self, data: dict):
-        style = ParagraphStyle("emisor", fontSize=8, leading=12, spaceAfter=2)
         lines = [
-            f'<font color="#DC2626"><b>{data.get("razon_social", "—")}</b></font>',
-            f'CUIT: {data.get("cuit", "—")}',
-            f'Domicilio: {data.get("domicilio", "—")}',
-            f'IVA: {data.get("condicion_iva", "—")}',
-            f'Punto de Venta: {data.get("punto_venta", "0001")}',
+            '<font color="#DC2626"><b>%s</b></font>' % data.get("razon_social", "—"),
+            'CUIT: %s' % data.get("cuit", "—"),
+            'Domicilio: %s' % data.get("domicilio", "—"),
+            'IVA: %s' % data.get("condicion_iva", "—"),
+            'Punto de Venta: %s' % data.get("punto_venta", "0001"),
         ]
-        return Paragraph("<br/>".join(lines), style)
+        return Paragraph(
+            "<br/>".join(lines),
+            ParagraphStyle("emisor", fontSize=8, leading=12, spaceAfter=2),
+        )
 
     def _comprobante_info(self, data: dict):
-        style = ParagraphStyle("info", fontSize=8, leading=12, alignment=TA_RIGHT)
         lines = [
-            f'<b>Tipo:</b> {data.get("tipo_comprobante", "—")}',
-            f'<b>N°:</b> {data.get("numero_comprobante", "—")}',
-            f'<b>CAE:</b> {data.get("cae", "—")}',
-            f'<b>Vto. CAE:</b> {data.get("vencimiento_cae", "—")}',
-            f'<b>Fecha Emisión:</b> {data.get("fecha_emision", "—")}',
+            '<b>Tipo:</b> %s' % data.get("tipo_comprobante", "—"),
+            '<b>N°:</b> %s' % data.get("numero_comprobante", "—"),
+            '<b>CAE:</b> %s' % data.get("cae", "—"),
+            '<b>Vto. CAE:</b> %s' % data.get("vencimiento_cae", "—"),
+            '<b>Fecha Emisión:</b> %s' % data.get("fecha_emision", "—"),
         ]
-        return Paragraph("<br/>".join(lines), style)
+        return Paragraph(
+            "<br/>".join(lines),
+            ParagraphStyle("info", fontSize=8, leading=12, alignment=TA_RIGHT),
+        )
 
     def _detail_table(self, items: list, total: float):
-        cell_style = ParagraphStyle("cell", fontSize=8, leading=11)
-        header_style = ParagraphStyle("hdr", fontSize=8, leading=11, textColor=white)
-
+        cell = ParagraphStyle("cell", fontSize=8, leading=11)
+        hdr = ParagraphStyle("hdr", fontSize=8, leading=11, textColor=white)
         headers = [
-            Paragraph("<b>Concepto</b>", header_style),
-            Paragraph("<b>Cant.</b>", header_style),
-            Paragraph("<b>P. Unit.</b>", header_style),
-            Paragraph("<b>Subtotal</b>", header_style),
+            Paragraph("<b>Concepto</b>", hdr),
+            Paragraph("<b>Cant.</b>", hdr),
+            Paragraph("<b>P. Unit.</b>", hdr),
+            Paragraph("<b>Subtotal</b>", hdr),
         ]
-
         rows = [headers]
         for item in items:
             rows.append([
-                Paragraph(item.get("descripcion", "—"), cell_style),
-                Paragraph(str(item.get("cantidad", 1)), cell_style),
-                Paragraph("$ {:,.2f}".format(item.get("precio_unitario", 0)), cell_style),
-                Paragraph("$ {:,.2f}".format(item.get("subtotal", 0)), cell_style),
+                Paragraph(item.get("descripcion", "—"), cell),
+                Paragraph(str(item.get("cantidad", 1)), cell),
+                Paragraph("$ {:,.2f}".format(item.get("precio_unitario", 0)), cell),
+                Paragraph("$ {:,.2f}".format(item.get("subtotal", 0)), cell),
             ])
-
-        total_style = ParagraphStyle("b", parent=cell_style, fontSize=10, textColor=PRIMARY)
+        tot = ParagraphStyle("tot", parent=cell, fontSize=10, textColor=PRIMARY)
         rows.append([
-            Paragraph("", cell_style),
-            Paragraph("", cell_style),
-            Paragraph("<b>TOTAL</b>", total_style),
-            Paragraph("<b>$ {:,.2f}</b>".format(total), total_style),
+            Paragraph("", cell),
+            Paragraph("", cell),
+            Paragraph("<b>TOTAL</b>", tot),
+            Paragraph("<b>$ {:,.2f}</b>".format(total), tot),
         ])
-
         col_widths = [240, 60, 100, 100]
         table = Table(rows, colWidths=col_widths, repeatRows=1)
         table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), SECONDARY),
             ("TEXTCOLOR", (0, 0), (-1, 0), white),
             ("ALIGN", (1, 0), (-1, -1), "CENTER"),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
             ("GRID", (0, 0), (-2, -2), 0.5, HexColor("#E5E7EB")),
             ("BACKGROUND", (0, -1), (-1, -1), HexColor("#FEF2F2")),
             ("LINEABOVE", (0, -1), (-1, -1), 1, PRIMARY),
@@ -117,14 +110,14 @@ class GeneradorPDFFactura:
 
     def _build_qr(self, data: dict):
         qr_text = (
-            "Factura {} | CUIT: {} | PV: {} | N°: {} | "
-            "CAE: {} | Total: ${:,.2f}".format(
+            "Factura %s | CUIT: %s | PV: %s | N°: %s | "
+            "CAE: %s | Total: $%s" % (
                 data.get("tipo_comprobante", ""),
                 data.get("cuit", ""),
                 data.get("punto_venta", ""),
                 data.get("numero_comprobante", ""),
                 data.get("cae", ""),
-                data.get("importe_total", 0),
+                "{:,.2f}".format(data.get("importe_total", 0)),
             )
         )
         try:
@@ -136,79 +129,56 @@ class GeneradorPDFFactura:
             return None
 
     def generar(self, data: dict) -> str:
-        filename = "factura_{}_{}.pdf".format(
-            data.get("numero_comprobante", "NN"),
+        filename = "factura_%s_%s.pdf" % (
+            data.get("numero_comprobante", "NN").replace("/", "-"),
             datetime.now().strftime("%Y%m%d_%H%M%S"),
         )
         filepath = os.path.join(self.output_dir, filename)
 
         doc = SimpleDocTemplate(
-            filepath,
-            pagesize=A4,
-            topMargin=1.5 * cm,
-            bottomMargin=1.5 * cm,
-            leftMargin=2 * cm,
-            rightMargin=2 * cm,
+            filepath, pagesize=A4,
+            topMargin=1.5*cm, bottomMargin=1.5*cm,
+            leftMargin=2*cm, rightMargin=2*cm,
         )
 
-        story = []
+        story = [self._header_table(), Spacer(1, 15)]
 
-        # Header with logo
-        story.append(self._header_table())
+        sep = Table([[""]], colWidths=[500])
+        sep.setStyle(TableStyle([("LINEBELOW", (0, 0), (-1, -1), 1, PRIMARY)]))
+        story.append(sep)
         story.append(Spacer(1, 15))
 
-        # Separator line
-        sep_table = Table([[""]], colWidths=[500])
-        sep_table.setStyle(TableStyle([
-            ("LINEBELOW", (0, 0), (-1, -1), 1, PRIMARY),
-        ]))
-        story.append(sep_table)
-        story.append(Spacer(1, 15))
-
-        # Emisor + Comprobante info side by side
         info_data = [[self._emisor_block(data), self._comprobante_info(data)]]
         info_table = Table(info_data, colWidths=[280, 220])
-        info_table.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ]))
+        info_table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
         story.append(info_table)
         story.append(Spacer(1, 15))
 
-        # Detail header
         story.append(Paragraph(
             '<font size="11" color="#111827"><b>Detalle del Comprobante</b></font>',
             ParagraphStyle("detalle", spaceAfter=6),
         ))
 
-        # Detail table
-        items = data.get(
-            "items",
-            [
-                {
-                    "descripcion": data.get("descripcion", ""),
-                    "cantidad": 1,
-                    "precio_unitario": data.get("importe_total", 0),
-                    "subtotal": data.get("importe_total", 0),
-                }
-            ],
-        )
+        items = data.get("items") or [{
+            "descripcion": data.get("descripcion", ""),
+            "cantidad": 1,
+            "precio_unitario": data.get("importe_total", 0),
+            "subtotal": data.get("importe_total", 0),
+        }]
         story.append(self._detail_table(items, data.get("importe_total", 0)))
         story.append(Spacer(1, 15))
 
-        # QR + footer
         qr_code = self._build_qr(data)
         if qr_code:
-            qr_data = [
-                [
-                    qr_code,
-                    Paragraph(
-                        "Este comprobante cumple con RG 5824 ARCA.<br/>"
-                        "Generado por Ultima Milla - www.ultimamilla.com.ar",
-                        ParagraphStyle("qr_footer", fontSize=7, leading=9, textColor=MEDIUM_GRAY),
-                    ),
-                ]
-            ]
-            qr_table = Table(qr_data, colWidths=[70, 430])
+            qr_rows = [[
+                qr_code,
+                Paragraph(
+                    "Este comprobante cumple con RG 5824 ARCA.<br/>"
+                    "Generado por Ultima Milla - www.ultimamilla.com.ar",
+                    ParagraphStyle("f", fontSize=7, leading=9, textColor=MEDIUM_GRAY),
+                ),
+            ]]
+            qr_table = Table(qr_rows, colWidths=[70, 430])
             qr_table.setStyle(TableStyle([
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("LINEABOVE", (0, 0), (-1, -1), 0.5, MEDIUM_GRAY),
