@@ -1,10 +1,13 @@
 import logging
 import os
+import base64
 from datetime import datetime
+from io import BytesIO
+from urllib.request import urlopen
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.lib.colors import HexColor, white
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
 from reportlab.graphics.barcode import qr
@@ -24,19 +27,60 @@ class GeneradorPDFFactura:
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
 
-    def _header_table(self):
-        logo_html = (
-            '<font size="16" color="#DC2626"><b>●</b></font>'
-            '&nbsp;<font size="14" color="#111827"><b>ULTIMA MILLA</b></font>'
-            '<br/><font size="7" color="#6B7280">Soluciones técnicas para pymes argentinas</font>'
-        )
+    def _load_logo(self, logo_url):
+        """Cargar logo desde URL o data:image URL
+
+        Args:
+            logo_url: URL del logo (http/https) o data:image URL
+
+        Returns:
+            BytesIO object con los datos de la imagen, o None si falla
+        """
+        if not logo_url:
+            return None
+        try:
+            if logo_url.startswith("data:image"):
+                # Extract base64 data from data URL
+                header, data = logo_url.split(",", 1)
+                logo_io = BytesIO(base64.b64decode(data))
+            else:
+                # Fetch from HTTP URL
+                response = urlopen(logo_url, timeout=5)
+                logo_io = BytesIO(response.read())
+
+            # Reset to beginning for image reading
+            logo_io.seek(0)
+            return logo_io
+        except Exception:
+            return None  # Continuar sin logo si falla
+
+    def _header_table(self, logo_url: str = None):
         title_html = (
             '<font size="13" color="#1A56C0"><b>FACTURA ELECTRÓNICA</b></font><br/>'
             '<font size="8" color="#6B7280">RG 5824 - ARCA</font>'
         )
-        logo = Paragraph(logo_html, ParagraphStyle("logo", fontSize=1, leading=1))
         title = Paragraph(title_html, ParagraphStyle("title_right", alignment=TA_RIGHT))
-        header_table = Table([[logo, title]], colWidths=[280, 280])
+
+        # Try to load custom logo if provided
+        logo_element = None
+        if logo_url:
+            logo_io = self._load_logo(logo_url)
+            if logo_io:
+                try:
+                    logo_element = Image(logo_io, width=80, height=80)
+                except Exception:
+                    logo_element = None
+
+        # Fallback to default HTML logo if custom logo fails
+        if not logo_element:
+            logo_html = (
+                '<font size="16" color="#DC2626"><b>●</b></font>'
+                '&nbsp;<font size="14" color="#111827"><b>ULTIMA MILLA</b></font>'
+                '<br/><font size="7" color="#6B7280">Soluciones técnicas para pymes argentinas</font>'
+            )
+            logo_element = Paragraph(logo_html, ParagraphStyle("logo", fontSize=1, leading=1))
+
+        header_table = Table([[logo_element, title]], colWidths=[280, 280])
         header_table.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("LEFTPADDING", (0, 0), (0, 0), 0),
@@ -128,7 +172,7 @@ class GeneradorPDFFactura:
         except Exception:
             return None
 
-    def generar(self, data: dict) -> str:
+    def generar(self, data: dict, logo_url: str = None) -> str:
         filename = "factura_%s_%s.pdf" % (
             data.get("numero_comprobante", "NN").replace("/", "-"),
             datetime.now().strftime("%Y%m%d_%H%M%S"),
@@ -141,7 +185,11 @@ class GeneradorPDFFactura:
             leftMargin=2*cm, rightMargin=2*cm,
         )
 
-        story = [self._header_table(), Spacer(1, 15)]
+        # Get logo_url from parameter or from data dict
+        if not logo_url:
+            logo_url = data.get("logo_url")
+
+        story = [self._header_table(logo_url), Spacer(1, 15)]
 
         sep = Table([[""]], colWidths=[500])
         sep.setStyle(TableStyle([("LINEBELOW", (0, 0), (-1, -1), 1, PRIMARY)]))
